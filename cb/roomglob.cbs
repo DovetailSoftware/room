@@ -1,0 +1,168 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : roomglob.cbs
+'
+' Description    : Adds Recent Objects item to menu
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+'
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C)  1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Global locale        As String          ' Current locale
+Global the_response  As Integer         ' Response to question
+Global room_freq     As Long            ' How often to save ROOM data 
+                                        '  (0 = only on close)
+Global room_count    As Long            ' How many operations have been
+                                        '  performed since last save
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Get the locale for the user
+'
+' Copyright (C) 1998. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub set_locale()
+  Dim t_ret  As New BulkRetrieve        ' Structure for DB query
+  Dim t_list As List                    ' List returned from query
+  Dim t_rec  As Record                  ' Record from query
+  
+                                        ' If there's a locale already, exit
+                                        ' Get the environment variable
+                                        ' If not found, try LC_ALL
+                                        ' If still not found, assume US English
+  If Trim$(locale) <> "" Then Exit Sub
+  locale = Trim$(Environ("LC_STRING"))
+  If locale = "" Then
+     locale = Trim$(Environ("LC_ALL"))
+  End If
+  If locale = "" Then
+     locale = "EN_US"
+  End If
+
+                                        ' Set locale defaults based on fc_locale record
+  t_ret.SimpleQuery  0, "fc_locale"
+  t_ret.AppendFilter 0, "locale_name", cbEqual, locale
+  t_ret.RetrieveRecords
+  Set t_list = t_ret.GetRecordList(0)
+  If t_list.count > 0 Then
+    Set t_rec = t_list.ItemByIndex(0)
+    fc_abday      = t_rec.GetField("abday")
+    fc_day        = t_rec.GetField("day")
+    fc_abmon      = t_rec.GetField("abmon")
+    fc_mon        = t_rec.GetField("mon")
+    fc_d_t_fmt    = t_rec.GetField("d_t_fmt")
+    fc_d_fmt      = t_rec.GetField("d_fmt")
+    fc_t_fmt      = t_rec.GetField("t_fmt")
+    fc_am_pm      = t_rec.GetField("am_pm")
+    fc_t_fmt_ampm = t_rec.GetField("t_fmt_ampm")
+  End If    
+End Sub
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Initialize ROOM Count
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public Sub init_room_count()
+  Dim t_ret    As New BulkRetrieve      ' Structure to query the DB
+  Dim t_list   As List                  ' List from query
+  Dim conf_rec As Record                ' Config item record
+  
+                                        ' Start off with no operations
+  room_count = 0
+
+                                        ' Get the configuration item
+                                        '  from the DB
+  t_ret.SimpleQuery 0, "config_itm"
+  t_ret.AppendFilter 0, "name", cbEqual, "ROOM Save Frequency"
+  t_ret.RetrieveRecords
+  
+                                        ' Get the list. If no conf
+                                        '  record, assume 0 for freq
+                                        ' Else, get the value from the
+                                        '  record.
+  Set t_list = t_ret.GetRecordList(0)
+  If t_list.Count = 0 Then
+     room_freq = 0
+  Else
+     Set conf_rec = t_list.ItemByIndex(0)
+     room_freq = conf_rec.GetField("i_value")
+  End If
+End Sub
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' initialize_app()
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub initialize_app() 
+  Dim pc_menu As New AppMenu            ' The Policies and Customers menu bar
+  Dim cs_menu As New AppMenu            ' The Clear Support menu bar
+  Dim cq_menu As New AppMenu            ' The Clear Quality menu bar
+  Dim prod_menu As New AppMenu          ' The Product Manager
+  Dim logistics_menu As New AppMenu     ' The Clear Logistics menu bar
+  Dim contracts_menu As New AppMenu     ' The Clear Contracts menu bar
+  Dim callcenter_menu As New AppMenu    ' The Clear Call Center menu bar
+  Dim sales_menu As New AppMenu         ' The Clear Sales menu bar
+
+                                        ' Set the locale, if needed
+                                        ' Initialize the ROOM count
+  set_locale
+  init_room_count
+  
+                                        ' Add ROOM to all menus
+  prod_menu.MenuBarID = 1005
+  prod_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+
+  pc_menu.MenuBarID = 1001
+  pc_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+
+  cs_menu.MenuBarID = 1002
+  cs_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+
+  cq_menu.MenuBarID = 1008
+  cq_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+
+  logistics_menu.MenuBarID = 1007
+  logistics_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+  
+  contracts_menu.MenuBarID = 1011
+  contracts_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+  
+  callcenter_menu.MenuBarID = 1013
+  callcenter_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+  
+  sales_menu.MenuBarID = 1012
+  sales_menu.AddItem "Desktop", "Recent Objects", "recent_objects"
+
+                                        ' Show the menu
+  App.ShowDefaultMenu  
+End Sub
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Show the ROOM form
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub recent_objects_Click()
+  Dim new_form As New Form              ' Allocate the new form
+  
+                                        ' Show the new form
+  new_form.Show 2250, cbFrontIfUp
+End Sub

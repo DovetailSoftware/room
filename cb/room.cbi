@@ -1,0 +1,33 @@
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Recent Object Monitor Directives File
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+room2250.cbs -F 2250 ro1.0
+
+room321.cbs -F 321 ro1.0
+room328.cbs -F 328 ro1.0
+room334.cbs -F 334 ro1.0
+room337.cbs -F 337 ro1.0
+room411.cbs -F 411 ro1.0
+room418.cbs -F 418 ro1.0
+room420.cbs -F 420 ro1.0
+room502.cbs -F 502 ro1.0
+room611.cbs -F 611 ro1.0
+room672.cbs -F 672 ro1.0
+room712.cbs -F 712 ro1.0
+room717.cbs -F 717 ro1.0
+room731.cbs -F 731 ro1.0
+room775.cbs -F 775 ro1.0
+room776.cbs -F 776 ro1.0
+room9133.cbs -F 9133 ro1.0
+room9600.cbs -F 9600 ro1.0
+room9601.cbs -F 9601 ro1.0
+room9620.cbs -F 9620 ro1.0
+room9630.cbs -F 9630 ro1.0
+room9633.cbs -F 9633 ro1.0
+room9672.cbs -F 9672 ro1.0
+
+roomglob.cbs -G clarify -N room
+string.cbs -G clarify -N string

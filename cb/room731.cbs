@@ -1,0 +1,23 @@
+OPTION EXPLICIT
+
+Sub Form_Load()
+  Dim this_rec As Record
+
+  Me.DoDefault
+
+  Set this_rec = Cobj_CONTRACT.Contents  
+  If this_rec.GetField("objid") > 0 Then
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Contract|" + _
+                         Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                         Trim$(this_rec.GetField("id"))
+  End If
+End Sub
+
+Sub Form_Save2(t_save As BulkSave)
+  Dim this_rec As Record
+  
+  Set this_rec = t_save.GetRecordByIndex(0, "contract")
+  Me.NotifyByID 2250, cbFirstMessage + 1, "Contract|" + _
+                      Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                      Trim$(this_rec.GetField("id"))
+End Sub

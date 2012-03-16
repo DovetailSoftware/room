@@ -1,0 +1,103 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : room9620.cbs
+'
+' Description    : Sends message to form 2250
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C)  1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+OPTION EXPLICIT
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Load Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Load()
+  Dim this_rec As Record                ' Current object
+  
+                                        ' Do default action
+  Me.DoDefault
+
+                                        ' If there is an action item, tell 2250 about it
+  Set this_rec = Cobj_RECTASK.Contents
+  If this_rec.GetField("objid") > 0 Then
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Action Item|" + _
+                         Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                         Trim$(this_rec.GetField("task_id"))
+  End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Custom List Click Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub clbCbxTas_Click()
+  Dim this_rec As Record
+  
+                                        ' For the new grid item, tell 2250 about it
+  Set this_rec = clbCbxTas.Selected
+'send message to add record to recently opened objects  
+  Me.NotifyByID 2250, cbFirstMessage + 1, "Action Item|" + _
+                      Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                      Trim$(this_rec.GetField("id"))
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Save Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Save2(t_save As BulkSave)
+  Dim this_rec As Record                ' Current object
+  
+                                        ' If there is one, tell 2250 about it
+  If t_save.CountByType("task") > 0 Then 
+     Set this_rec = t_save.GetRecordByIndex(0, "task")
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Action Item|" + _
+                         Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                         Trim$(this_rec.GetField("task_id"))    
+  End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Message Handler
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Message(ByVal num As Long, ByVal info As String) 
+  Dim res_list As List                  ' List of grid records
+  Dim this_rec As Record                ' Selected record
+  
+                                        ' If we get that message, get the action
+                                        '  item, and tell 2250 about it
+  If num = cbFirstMessage + 1 Then
+     Set res_list = Cobj_LORTASK.Contents
+     clbCbxTas.SetSelected res_list.FindFirstIndex(info, "id")
+     Set this_rec = clbCbxTas.Selected
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Action Item|" + _
+                         Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                         Trim$(this_rec.GetField("id"))
+  Else
+     Me.DoDefault
+  End If
+End Sub

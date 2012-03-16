@@ -1,0 +1,82 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : room9600.cbs
+'
+' Description    : Fills search criteria and opens opportunity record
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C)  1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+OPTION EXPLICIT
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Load Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Load()
+    Me.DoDefault
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Message Handler
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Message(msgno As Long, msgtxt As String)
+   Dim bulkRet As New BulkRetrieve      ' Structure to query the DB
+   Dim lstTmp As List                   ' List from DB query
+   Dim recTmp As Record                 ' Record from DB query
+   Dim iPos As Integer                  ' Position parsing int
+   Dim recView As Record                ' View record
+   
+                                        ' If a message from 2250, parse it, and
+                                        '  get the opportunity from the DB
+   Select Case msgno
+       Case cbFirstMessage + 1
+            iPos = Instr(msgtxt, "|")
+            msgtxt = LTrim(Right(msgtxt, Len(msgtxt)-iPos))
+            bulkRet.SimpleQuery 0, "opportunity"
+            bulkRet.AppendFilter 0, "objid", cbEqual, CLng(msgtxt)
+            bulkRet.RetrieveRecords
+
+                                        ' If it's found, get the record, and fill the
+                                        '  text box so we can press the button. Then
+                                        '  select the record in the grid, and press the
+                                        '  open button, and then close this form.            
+            Set lstTmp = bulkRet.GetRecordList(0)
+            If lstTmp.Count > 0 Then
+               Set recTmp = lstTmp.ItemByIndex(0)
+               txtIDSrch.Value =  recTmp.GetField("id")
+               btnCbxfOpp.Value = 1
+               clbCbxOpp.SetSelected 0
+               Set recView = clbCbxOpp.Selected
+               Set recTmp = New Record
+               recTmp.RecordType = "opportunity"
+               recView.GetObject "opportunity", recTmp
+               cobj_recOpportunity.Fill recTmp
+               btnOpen.Enabled = 1
+               btnOpen.Value = 1
+               Me.Close
+            Else
+               App.Msgbox "Opportunity no longer exists in the database."
+            End If
+        Case Else
+            Me.DoDefault
+   End Select    
+End Sub

@@ -1,0 +1,135 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : room672.cbs
+'
+' Description    : Sends message to form 2250 on 
+'                        form_load and close_click
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+'
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C)  1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+OPTION EXPLICIT
+
+                                        ' Declare modular variables
+Dim bClicked As Boolean
+Dim recSitePart As Record
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Load Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Load()
+  Dim this_rec As Record                ' Current object
+  
+                                        ' Do default action
+  me.DoDefault
+  
+                                        ' Initialize recSitePart
+  Set recSitePart = new record
+  recSitePart.RecordType = "site_part"
+  
+                                        ' If there's a SP, tell 2250 about it
+  Set this_rec = Cobj_PRD_INST.Contents
+  If this_rec.GetField("objid") > 0 Then
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Site Part|" + _
+                         Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                         Trim$(this_rec.GetField("instance_name"))
+  End If
+
+                                        ' Set boolean variable to false  
+  bClicked = False
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Close Button Click Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub CLOSE_Click()
+                                        ' Messages sent in form_load and Close_Click only
+                                        '  bug keeps messages from being sent in Form_Save
+
+                                        ' workaround:  boolean set on INST_SEL_CLICK and
+                                        ' INSTALL_CLICK; site_part records copied in Form_Save
+
+   If bClicked Then
+         Me.NotifyByID 2250, cbFirstMessage + 1, "Site Part|" + _
+                     Trim$(Str$(recSitePart.GetField("objid"))) + "|" + _
+                     Trim$(recSitePart.GetField("instance_name")) 
+         bClicked = False   
+   Else
+         Me.DoDefault
+         If recSitePart.GetField("objid") > 0 Then
+                Me.NotifyByID 2250, cbFirstMessage + 1, "Site Part|" + _
+                     Trim$(Str$(recSitePart.GetField("objid"))) + "|" + _
+                     Trim$(recSitePart.GetField("instance_name")) 
+         End If
+   End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Save Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Save2(t_save As BulkSave)
+    Dim this_rec As Record              ' Current object
+    
+                                        ' If there's a SP, tell 2250 about it via the
+                                        '  workaround
+    If t_save.CountByType("site_part") > 0 Then    
+       Set this_rec = t_save.GetRecordByIndex(0, "site_part")
+       Set recSitePart = this_rec.Copy
+    'Me.NotifyByID 2250, cbFirstMessage + 1, "Site Part|" + _
+    '                  Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+    '                  Trim$(this_rec.GetField("instance_name"))    
+    End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Button Click Methods
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub INSTALL_Click()
+                                        ' Do default action
+                                        ' Set boolean and call close_click   
+   Me.DoDefault
+   bClicked = TRUE
+   Close_Click
+End Sub
+
+Sub INST_ONLY_Click()
+                                        ' Not used in SR3
+   Me.DoDefault
+                                        ' Set boolean and call close_click   
+   bClicked = TRUE
+   Close_Click
+End Sub
+
+Sub INST_SEL_Click()
+   Me.DoDefault
+   
+                                        ' Set boolean and call close_click      
+   bClicked = TRUE
+   Close_Click
+End Sub

@@ -1,0 +1,122 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : room502.cbs
+'
+' Description    : Sends message to form 2250 on 
+'                        form_load and form_save and custom
+'                        list click method
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+'
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C)  1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+OPTION EXPLICIT
+
+Declare Sub FillObjects(strObjid As String)
+
+Dim lstGrid As List
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Load Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Load()
+  Dim this_rec As Record                ' Current object
+  
+                                        ' Do default action
+  Me.DoDefault
+
+                                        ' Get PR record
+                                        ' If it exists, tell 2250 about it and tell it
+                                        '  that we have this form open
+  Set this_rec = Cobj_REQ_DETAILS.Contents
+  If this_rec.GetField("objid") > 0 Then
+      Me.NotifyByID 2250, cbFirstMessage + 1, "Part Request|" + _
+                      Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                      Trim$(this_rec.GetField("detail_number"))
+      Me.NotifyByID 2250, cbFirstMessage + 2, "TRUE"
+   End If
+   
+   Set lstGrid = cobj_request_summary_view.Contents
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Custom List Click Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub FIELD_ARRAY_Click()
+  Dim this_rec As Record                ' Current object
+  
+                                        ' Do default action
+  Me.DoDefault  
+  
+                                        ' Tell 2250 about the new row selected
+ Set this_rec = FIELD_ARRAY.Selected 
+  Me.NotifyByID 2250, cbFirstMessage + 1, "Part Request|" + _
+                      Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                      Trim$(this_rec.GetField("rma_number"))
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Close Button Click Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Close_Click()
+                                        ' Do default action
+                                        ' Tell 2250 that PR form isn't open any more
+  Me.DoDefault
+  Me.NotifyByID 2250, cbFirstMessage + 2, "FALSE"
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Save Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Save2(t_save As BulkSave)
+  Dim this_rec As Record                ' Current object
+  
+                                        ' If there's a PR detail, tell 2250 about it
+  If t_save.CountByType("demand_dtl") > 0 Then  
+     Set this_rec = t_save.GetRecordByIndex(0, "demand_dtl")
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Part Request|" + _
+                      Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                      Trim$(this_rec.GetField("detail_number"))    
+      Set lstGrid = cobj_request_summary_view.Contents    
+   End If             
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Save Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Message(msgno AS Long, msgtxt As String)
+                                        ' Do default action
+                                        ' If message from 2250, press the close button
+    Me.DoDefault
+    If msgno = cbFirstMessage + 1 Then
+       Ctl_Close.Value = True
+    End If
+End Sub

@@ -1,0 +1,30 @@
+OBJECT TYPE = "fc_string", NAME="268435457"
+  UNIQUE_FIELD = id, locale, application
+  FIELDS
+   id=13700;
+   locale="EN_US";
+   application="";
+   string="Recent Objects";
+  END_FIELDS
+END_OBJECT NAME="268435457"
+
+OBJECT TYPE = "fc_string", NAME="268435458"
+  UNIQUE_FIELD = id, locale, application
+  FIELDS
+   id=13701;
+   locale="EN_US";
+   application="";
+   string="Objects to Show:";
+  END_FIELDS
+END_OBJECT NAME="268435458"
+
+OBJECT TYPE = "fc_string", NAME="268435459"
+  UNIQUE_FIELD = id, locale, application
+  FIELDS
+   id=13702;
+   locale="EN_US";
+   application="";
+   string="Done";
+  END_FIELDS
+END_OBJECT NAME="268435459"
+

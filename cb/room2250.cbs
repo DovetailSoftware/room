@@ -1,0 +1,454 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : room2250.cbs
+'
+' Description    : Allows viewing of recently opened objects
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+'
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C) 1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+OPTION EXPLICIT
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Declare external functions
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Declare Public Sub get_strings(start_val As Long, _
+                               num_strings As Integer, _
+                               locale As String, _
+                               application As String, _
+                               ret_strings As List)
+
+Declare Public Function get_sprintf(str_num As Long, locale As String, application As String, _
+                                    Optional arg1 As Variant, Optional arg2 As Variant, _
+                                    Optional arg3 As Variant, Optional arg4 As Variant, _
+                                    Optional arg5 As Variant, Optional arg6 As Variant) As String
+
+Type adp_header
+   schema_rev As Integer
+End Type
+
+Dim this_rec As Record
+Dim isOpen As Boolean
+Dim int_schema_rev As Long
+
+Declare Function GetSchemaRev() As Long
+
+Global locale As String
+Global room_freq     As Long            ' How often to save ROOM data 
+                                        '  (0 = only on close)
+Global room_count    As Long            ' How many operations have been
+                                        '  performed since last save
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Load and initialize form
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Load()
+  Dim empty_list  As New List           ' Empty list for destination of grid
+  Dim ret_strings As New List           ' List for I18N strings
+  Dim t_ret       As New BulkRetrieve   ' Structure to query the DB
+  Dim t_list      As List               ' List returned from query
+  Dim user_rec    As Record             ' Current user
+
+                                        ' Do default action
+  Me.DoDefault
+  
+                                        ' Get strings for form. Paint them
+  get_strings 13700, 3, locale, "", ret_strings
+  me.caption                  = ret_strings.ItemByIndex(0)
+  LBL_NUM.caption             = ret_strings.ItemByIndex(1)
+  ctl_CLOSE.caption           = ret_strings.ItemByIndex(2)
+
+                                        ' Get current clarify revision
+                                        ' Fill in needed contextual objects
+  int_schema_rev = GetSchemaRev
+  empty_list.ItemType = "Long"
+  Cobj_LOS_OBJS.Fill empty_list
+  Cobj_LNG_COUNT.Fill 10
+  
+                                        ' Query db for recent objects for the user
+  t_ret.SimpleQuery 0, "user"
+  t_ret.AppendFilter 0, "objid", cbEqual, App.UserObjid
+  t_ret.TraverseFromParent 1, "user2recent_obj", 0
+  t_ret.AppendSort 1, "rank", cbAscending
+  t_ret.RetrieveRecords
+
+                                        ' Get current user
+                                        ' Fill the text box of recent obj num
+                                        ' If they don't have a valid value, use a default
+  Set t_list = t_ret.GetRecordList(0)
+  Set user_rec = t_list.ItemByIndex(0)
+  TXT_NUM.Text = user_rec.GetField("x_num_recent_obj")
+  If TXT_NUM.Text <= 0 Or TXT_NUM.Text > 100 Then TXT_NUM.Text = 10
+  
+                                        ' Fill the custom list with query results
+                                        '  of recent objects
+  Set t_list = t_ret.GetRecordList(1)
+  Cobj_LOR_OBJS.Fill t_list
+
+                                        ' Set the global flag for part requests
+                                        ' We're back in the form. Reset item count
+  isOpen = False
+  room_count = 0
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Take action to open object on dbl-click in list box 
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub CLB_OBJS_DblClick()
+  Dim the_row As Record                 ' Row from grid
+  Dim new_rec As New Record             ' New record needed to open some objects
+  Dim t_ret   As New BulkRetrieve       ' Structure to query the DB
+  Dim t_list  As List                   ' List returned from query
+  Dim i_ret   As Integer                ' Counting integer
+  
+                                        ' Get selected row
+  Set the_row = CLB_OBJS.Selected
+
+                                        ' Match the object type to show appropriate forms
+                                        ' For most of them, use the App.ShowXXX method
+                                        ' For some, a little trick is required
+  Select Case Ucase(the_row.GetField("obj_type"))
+    Case "CASE"
+      new_rec.RecordType = "case"
+      new_rec.SetField "objid", the_row.GetField("obj_objid")
+      App.ShowCase new_rec
+    Case "SUBCASE"
+      new_rec.RecordType = "subcase"
+      new_rec.SetField "objid", the_row.GetField("obj_objid")
+      App.ShowSubCase new_rec
+    Case "CONTACT"
+                                        ' Query for the contact at their primary site
+      t_ret.SimpleQuery 0, "rol_contct"
+      t_ret.AppendFilter 0, "con_objid", cbEqual, the_row.GetField("obj_objid")
+      t_ret.AppendFilter 0, "primary_site", cbEqual, 1
+      t_ret.RetrieveRecords
+      Set t_list = t_ret.GetRecordList(0)
+      Set new_rec = t_list.ItemByIndex(0)
+      App.ShowContact new_rec
+    Case "SITE"
+      t_ret.SimpleQuery 0, "site"
+      t_ret.AppendFilter 0, "objid", cbEqual, the_row.GetField("obj_objid")
+      t_ret.RetrieveRecords
+      Set t_list = t_ret.GetRecordList(0)
+      Set new_rec = t_list.ItemByIndex(0)
+      App.ShowSite new_rec
+    Case "SOLUTION"
+                                        ' Have to do this nonsense because with EFO,
+                                        '  the menu names changed, and the ExecuteMenu
+                                        '  doesn't work for "ClearSupport". It's supposed
+                                        '  to
+      If int_schema_rev = 51 Then
+         App.ExecuteMenu "Apps", "Support"
+      Else
+         App.ExecuteMenu "Apps", "ClearSupport"
+      End If
+      App.ExecuteMenu "Select", "Solutions"
+      Me.NotifyByID 328, cbFirstMessage + 1, the_row.GetField("obj_id")
+    Case "CR"
+      new_rec.RecordType = "bug"
+      new_rec.SetField "objid", the_row.GetField("obj_objid")
+      App.ShowCR new_rec    
+    Case "PART"
+      new_rec.RecordType = "part_num"
+      new_rec.SetField "objid", the_row.GetField("obj_objid")
+      App.ShowPart new_rec    
+    Case "SITE PART"
+     t_ret.SimpleQuery 0, "site_part"
+     t_ret.AppendFilter 0, "objid", cbEqual, the_row.GetField("obj_objid")
+     t_ret.RetrieveRecords
+     Set t_list = t_ret.GetRecordList(0)
+     Set new_rec = t_list.ItemByIndex(0)
+     App.ShowSitePart new_rec
+    Case "PART REQUEST"
+                                        ' Got to send a message to the form...
+      If isOpen Then
+          Set this_rec = the_row.Copy
+          Me.NotifyById 502, cbFirstMessage + 1
+      End If
+          new_rec.RecordType = "demand_dtl"
+          new_rec.SetField "objid", the_row.GetField("obj_objid")
+          App.ShowRequest new_rec
+    Case "ACTION ITEM"
+      If int_schema_rev = 51 Then
+         App.ExecuteMenu "Apps", "CallCenter"
+      Else
+         App.ExecuteMenu "Apps", "ClearCallCenter"
+      End If
+     App.ExecuteMenu "Select", "Action Items"
+     Me.NotifyByID 9620, cbFirstMessage + 1, the_row.GetField("obj_id")
+    Case "QUOTE"
+      new_rec.RecordType = "contract"
+      new_rec.SetField "objid", the_row.GetField("obj_objid")
+      App.ShowSalesQuote new_rec    
+    Case "CONTRACT"
+      new_rec.RecordType = "contract"
+      new_rec.SetField "objid", the_row.GetField("obj_objid")
+      App.ShowContract new_rec
+    Case "OPP(CLEARSALES W/O TAS)" 
+      If int_schema_rev = 51 Then
+         App.ExecuteMenu "Apps", "Sales"
+      Else     
+         App.ExecuteMenu "Apps", "ClearSales"
+      End If
+      App.ExecuteMenu "Select", "Opportunities"
+      Me.NotifyByID 9600, cbFirstMessage + 1, the_row.GetField("obj_id")  & _
+                                                                         "|" & CStr(the_row.GetField("obj_objid"))   
+    Case "OPP(CLEARTELEBUSINESS)"  
+      App.ExecuteMenu "Apps", "ClearTelebusiness"
+      App.ExecuteMenu "Select", "Opportunities"
+      Me.NotifyByID 9600, cbFirstMessage + 1, the_row.GetField("obj_id")   & _
+                                                                         "|" & CStr(the_row.GetField("obj_objid"))   
+    Case "OPP(CLEARSALES)"  
+      If int_schema_rev = 51 Then
+         App.ExecuteMenu "Apps", "Sales"
+      Else     
+         App.ExecuteMenu "Apps", "ClearSales"
+      End If
+      App.ExecuteMenu "Select", "Opportunities"
+      Me.NotifyByID 9600, cbFirstMessage + 1, the_row.GetField("obj_id")  & _
+                          "|" & CStr(the_row.GetField("obj_objid"))                                                                            
+  End Select
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Take action to close form on click of done button
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Public Sub save_room_data()
+  Dim t_save   As New BulkSave          ' Structure to write to DB
+  Dim t_ret    As New BulkRetrieve      ' Structure to query DB
+  Dim obj_rec  As Record                ' One object record
+  Dim obj_list As List                  ' List returned from DB
+  Dim t_int    As Integer               ' Looping integer
+  Dim user_rec As Record                ' Current user
+
+                                        ' Query db for the recent object records 
+                                        '  for the current user
+  t_ret.SimpleQuery 0, "user"
+  t_ret.AppendFilter 0, "objid", cbEqual, App.UserObjid
+  t_ret.TraverseFromParent 1, "user2recent_obj", 0
+  t_ret.AppendSort 1, "rank", cbAscending
+  t_ret.RetrieveRecords
+
+                                        ' Get user record and save number of recent objs
+                                        '  to display. Update the record
+  Set obj_list = t_ret.GetRecordList(0)
+  Set user_rec = obj_list.ItemByIndex(0)
+  user_rec.SetField "x_num_recent_obj", CLng(TXT_NUM.Text)
+  t_save.UpdateRecord user_rec
+
+                                        ' Delete recent_obj records from db for this
+                                        '  user
+  Set obj_list = t_ret.GetRecordList(1)
+  For t_int = 0 To obj_list.Count - 1
+    Set obj_rec = obj_list.ItemByIndex(t_int)
+    t_save.DeleteRecord obj_rec
+  Next t_int
+
+                                        ' Insert new recent_obj records and reorder
+  Set obj_list = Cobj_LOR_OBJS.Contents
+  For t_int = 0 To obj_list.Count - 1
+    Set obj_rec = obj_list.ItemByIndex(t_int)
+    obj_rec.SetField "rank", t_int
+    t_save.InsertRecord obj_rec
+    t_save.RelateRecordsToID obj_rec, "user", App.UserObjid, "recent_obj2user"
+  Next t_int
+  t_save.Save
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Take action to close form on click of done button
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub CLOSE_Click
+                                        ' Save room data
+                                        ' Close out the forms
+  save_room_data
+  Me.Close cbCloseChildren
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Add incoming object to table in memory
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub add_object(info As String)
+  Dim obj_list    As List               ' List of objects in grid
+  Dim new_rec     As New Record         ' New object to put in grid
+  Dim obj_type    As String             ' Type of the new object
+  Dim obj_objid   As Long               ' Objid of the new object
+  Dim obj_id      As String             ' ID Number (or other field) for new object
+  Dim the_pos     As Integer            ' Parsing integer
+  Dim new_list    As New List           ' New list to build up
+  Dim obj_rec     As Record             ' Record from existing object list
+  Dim t_int       As Integer            ' Looping integer
+  Dim max_num     As Long               ' Max number allowed in list
+  Dim num_in_list As Long               ' Current number in the list
+
+                                        ' Parse the incoming message. Get the type, the
+                                        '  objid, and the ID Number
+  obj_type = Item$(info, 1, 1, "|")
+  obj_objid = CLng(Item$(info, 2, 2, "|"))
+  obj_id = Item$(info, 3, 3, "|")
+  
+                                        ' Get the max number of records to show
+                                        ' Get the list from the grid
+                                        ' See if the object is already in the grid
+  max_num = TXT_NUM.Text
+  Set obj_list = Cobj_LOR_OBJS.Contents
+  the_pos = obj_list.FindFirstIndex(obj_type, "obj_type", obj_objid, "obj_objid")
+
+                                        ' Set the fields for the new record
+  new_rec.RecordType = "recent_obj"
+  new_rec.SetField "obj_type", obj_type
+  new_rec.SetField "obj_objid", obj_objid
+  new_rec.SetField "obj_id", obj_id
+  new_rec.SetField "rank", 0
+  num_in_list = 1
+
+                                        ' Start the new list
+  new_list.ItemType = "Record"
+  new_list.AppendItem new_rec
+
+                                        ' Loop through the object list and 
+                                        '  reorder the records (if we find the new record
+                                        '  already in the list, skip it)
+  For t_int = 0 To obj_list.Count - 1
+    If num_in_list = max_num Then Goto add_list
+  
+    If t_int <> the_pos Then
+       Set obj_rec = obj_list.ItemByIndex(t_int)
+       obj_rec.SetField "rank", t_int + 1
+       new_list.AppendItem obj_rec
+       num_in_list = num_in_list + 1
+    End If
+  Next t_int
+  
+add_list:
+                                        ' Fill the custom list and unselect the record
+  Cobj_LOR_OBJS.Fill new_list 
+  CLB_OBJS.UnSelect
+
+                                        ' If we're doing the frequency thing...
+                                        '  Increment the count
+                                        '  See if we need to save. If so, do it.
+  If room_freq > 0 Then
+     room_count = room_count + 1
+     If room_count >= room_freq Then
+        room_count = 0
+        save_room_data
+     End If
+  End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Update number of items shown when desired count is changed
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub TXT_NUM_LostFocus()
+  Dim new_count As Long
+  Dim obj_list  As List
+  Dim t_int     As Integer
+  
+                                        ' Displays the new max number of records
+                                        ' If a bad number, set to a default value
+  new_count = TXT_NUM.Text
+  If new_count <= 0 Or new_count > 100 Then
+     TXT_NUM.Text = 10
+     Exit Sub
+  End If
+
+                                        ' If there are now too many items in the
+                                        '  grid for the max number of records, delete
+                                        '  the last N of them to fix it  
+  If new_count < CLB_OBJS.ListCount Then
+     CLB_OBJS.UnSelect
+     Set obj_list = Cobj_LOR_OBJS.Contents
+     For t_int = obj_list.Count - 1 To new_count Step -1
+       obj_list.RemoveByIndex t_int
+     Next t_int
+     Cobj_LOR_OBJS.Fill obj_list
+  End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Process incoming messages
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Message(ByVal num As Long, ByVal info As String)
+                                        ' If it's a close message, send the close
+                                        ' If = cbFirstMessage + 1, add the object
+                                        ' If = cbFirstMessage + 2, set the isOpen flag
+  Select Case num
+   Case cbCloseMessage
+     Ctl_CLOSE.Value = True
+   Case cbFirstMessage + 1
+     add_object info
+   Case cbFirstMessage + 2
+     If info = "TRUE" Then
+       isOpen = TRUE
+     Else
+       isOpen = FALSE
+     End If     
+  End Select
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Get the current Clarify version
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Function GetSchemaRev() As Long
+  Dim lstTmp  As New List               ' List returned from SQL query
+  Dim recTmp  As adp_header             ' Structure returned from query
+  Dim toDB    As New SQLDB              ' SQLDB to do the query
+  Dim iIndex  As Integer                ' Indexing integer
+  Dim SqlStmt As String                 ' SQL to execute
+  
+                                        ' Set the list type and sql stmt
+                                        ' Execute the SQL
+  lstTmp.ItemType = "adp_header"
+  SqlStmt = "Select schema_rev from adp_db_header"
+  toDB.Select sqlStmt, lstTmp
+  
+                                        ' Get the results
+  If lstTmp.Count = 1 Then
+     lstTmp.GetItemByIndex 0, recTmp
+  End If
+  
+                                        ' Return the schema version
+  GetSchemaRev = recTmp.schema_rev
+End Function

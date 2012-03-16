@@ -1,0 +1,64 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Product        : Recently Opened Object Monitor
+'
+' Series         : First Choice Workflow Series(tm)
+'
+' Name           : room611.cbs
+'
+' Description    : Sends message to form 2250 on 
+'                        form_load and form_save
+'
+' Author         : First Choice Software, Inc.
+'                  4412 Spicewood Springs Road
+'                  Suite 701
+'                  Austin, TX  78759
+'                  (512) 418-2905
+'                  EMAIL: support@fchoice.com
+'                  www.fchoice.com
+'
+' Platforms      : This version supports Clarify 5.0 and later
+'
+' Copyright (C)  1999 First Choice Software, Inc.
+' All Rights Reserved.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+OPTION EXPLICIT
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Load Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Load()
+  Dim this_rec As Record                ' Current object
+
+                                        ' Do default action
+  Me.DoDefault
+
+                                        ' If there's a part, tell 2250 about it
+  Set this_rec = Cobj_PARTNUM_VI.Contents  
+  If this_rec.GetField("objid") > 0 Then
+     Me.NotifyByID 2250, cbFirstMessage + 1, "Part|" + _
+                         Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                         Trim$(this_rec.GetField("part_no"))
+  End If
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Form Save Method
+'
+' Copyright (C) 1999. First Choice Software. All Rights Reserved.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Form_Save2(t_save As BulkSave)
+  Dim this_rec As Record                ' Current object
+  
+                                        ' If there's a part, tell 2250 about it
+  If t_save.CountByType("part_num") > 0 Then  
+     Set this_rec = t_save.GetRecordByIndex(0, "part_num")
+      Me.NotifyByID 2250, cbFirstMessage + 1, "Part|" + _
+                      Trim$(Str$(this_rec.GetField("objid"))) + "|" + _
+                     Trim$(this_rec.GetField("part_number"))
+   End If
+End Sub
